@@ -40,26 +40,31 @@ function get_macro() {
 }
 
 function eval_macro_input() {
-    local macro=$1
+    local macro="$*"
     _log "eval_macro_input macro: $macro"
     if [[ $macro == *"${INPUT_PLACE_HOLDER}"* ]]; then
-        local input=$(rofi -dmenu -format f)
+        local input=$(rofi -dmenu -format f -p "${macro}")
         macro="${macro/${INPUT_PLACE_HOLDER}/${input}}"
     fi
     echo $macro
 }
 
 function eval_macro_list() {
-    local macro=$1
+    local macro="$*"
     local list_place_holder=$(echo $macro | \
         grep -Eo '<<list_.*>>')
-    local list_name=$(echo $list_place_holder | \
-        sed -e 's/<<list_//g' -e 's/>>//g')
 
-    local list_script_name="${MACRO_DIR}/${list_name}.list"
-    local selected_list_item=$(echo "$(eval $list_script_name | rofi -dmenu -p ${list_name})")
+    if [ "$list_place_holder" != "" ]; then
+        local list_name=$(echo $list_place_holder | \
+            sed -e 's/<<list_//g' -e 's/>>//g')
 
-    echo "${macro/${list_place_holder}/${selected_list_item}}"
+        local list_script_name="${MACRO_DIR}/${list_name}.list"
+        local selected_list_item=$(echo "$(eval $list_script_name | rofi -dmenu -p ${list_name})")
+
+        macro="${macro/${list_place_holder}/${selected_list_item}}"
+    fi
+
+    echo $macro
 }
 
 function eval_macro() {
