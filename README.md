@@ -32,12 +32,12 @@ Selected kebyoard marro will typed with 'xdotool type' command.
 A macro supports two type of place holders which will be populated with
 a follow up user interaction.
 
-The first one is '<<input>>' placeholder.
+The first one is '&lt;&lt;input&gt;&gt;' placeholder.
 
 If a macro contains this placeholder rofi-keyboard-macros will run a rofi
 to take your input.
 
-For example one can define a macro 'docker kill <<input>>'. The '<<input>>'
+For example one can define a macro 'docker kill &lt;&lt;input&gt;&gt;'. The '&lt;&lt;input&gt;&gt;'
 placeholder will be replaced with what has been entered.
 
 ## list files
