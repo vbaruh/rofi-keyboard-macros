@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+INPUT_PLACE_HOLDER="<<input>>"
+
+function _log() {
+    if [ ! -z "$ROFI_MACROS_DEBUG" ]; then
+        echo "$*" >&2
+    fi
+}
+
+if [ ! -z "$XDG_USER_CONFIG_DIR" ]; then
+  MACRO_DIR="${XDG_USER_CONFIG_DIR}/rofi/macros"
+else
+  MACRO_DIR="${HOME}/.config/rofi/macros"
+fi
+
+_log "MACRO_DIR: $MACRO_DIR"
+
+function get_macro_names() {
+    if [ -d "$MACRO_DIR" ]; then
+        for macro_file in $(ls ${MACRO_DIR}/*.macro); do
+            local macro_filename=$(basename $macro_file)
+            local macro_name="${macro_filename/.macro/}"
+            echo "${macro_name}"
+        done
+    fi
+}
+
+function get_macro_filename() {
+    local macro_name=$1
+    echo "${MACRO_DIR}/${macro_name}.macro"
+}
+
+function get_macro() {
+    local macro_file=$1
+
+    if [ -f "${macro_file}" ]; then
+        cat "${macro_file}"
+    fi
+}
+
+function eval_macro_input() {
+    local macro=$1
+    _log "eval_macro_input macro: $macro"
+    if [[ $macro == *"${INPUT_PLACE_HOLDER}"* ]]; then
+        local input=$(rofi -dmenu -format f)
+        macro="${macro/${INPUT_PLACE_HOLDER}/${input}}"
+    fi
+    echo $macro
+}
+
+function eval_macro_list() {
+    local macro=$1
+    local list_place_holder=$(echo $macro | \
+        grep -Eo '<<list_.*>>')
+    local list_name=$(echo $list_place_holder | \
+        sed -e 's/<<list_//g' -e 's/>>//g')
+
+    local list_script_name="${MACRO_DIR}/${list_name}.list"
+    local selected_list_item=$(echo "$(eval $list_script_name | rofi -dmenu -p ${list_name})")
+
+    echo "${macro/${list_place_holder}/${selected_list_item}}"
+}
+
+function eval_macro() {
+    local macro=$1
+    _log "eval_macro macro: $macro"
+    macro=$(eval_macro_input "$macro")
+    macro=$(eval_macro_list "$macro")
+    echo $macro
+}
+
+function main() {
+    _log "INPUT_PLACE_HOLDER: $INPUT_PLACE_HOLDER"
+
+    local selected_macro_name=$(get_macro_names | rofi -dmenu)
+    _log "selected_macro_name: $selected_macro_name"
+
+    local selected_macro_file=$(get_macro_filename $selected_macro_name)
+    local selected_macro=$(get_macro $selected_macro_file | rofi -dmenu)
+
+    _log "selected_macro: $selected_macro"
+    local final_macro=$(eval_macro "$selected_macro")
+
+    xdotool type "${final_macro}"
+}
+
+main
