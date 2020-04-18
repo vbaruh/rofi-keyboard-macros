@@ -8,6 +8,8 @@ which will be executed with 'xdotool type'.
 The script uses a directory as a repo for keyboard macros and helper list scripts.
 This is script's *macro directory*.
 
+## configuration
+
 The macro directory is within rofi's config directory, which means:
  - $XDG_USER_CONFIG_DIR/rofi/macros
 or
@@ -57,3 +59,13 @@ the selected option.
 Example macro with list placeholder is 'docker logs -f <<list_docker_ps>>'.
 So if the docker_ps.list script executes 'docker ps --format '{{ .Names }}''
 then the 'rofi -dmenu' call will show list of running container names.
+
+## modes
+
+rofi-keyboard-macros supports two modes - CASCADE and FLAT.
+
+In CASCADE mode macro selection happens in two steps - first a macro group
+is selected and in the second step a macro is selected.
+
+In FLAT mode macro selection happens in single step from a flattened macro list.
+In this list each item is in format "<macro group name>|<macro>".

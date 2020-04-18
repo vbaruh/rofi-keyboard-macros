@@ -2,6 +2,8 @@
 
 INPUT_PLACE_HOLDER="<<input>>"
 
+MODE=${ROFI_MACROS_MODE:-CASCADE}
+
 function _log() {
     if [ ! -z "$ROFI_MACROS_DEBUG" ]; then
         echo "$*" >&2
@@ -16,27 +18,60 @@ fi
 
 _log "MACRO_DIR: $MACRO_DIR"
 
-function get_macro_names() {
+function get_macro_group_names() {
     if [ -d "$MACRO_DIR" ]; then
         for macro_file in $(ls ${MACRO_DIR}/*.macro); do
-            local macro_filename=$(basename $macro_file)
-            local macro_name="${macro_filename/.macro/}"
-            echo "${macro_name}"
+            local macro_group_filename=$(basename $macro_file)
+            local macro_group_name="${macro_group_filename/.macro/}"
+            echo "${macro_group_name}"
         done
+    else
+        _log "MACRO_DIR $MACRO_DIR does not exist"
     fi
 }
 
-function get_macro_filename() {
-    local macro_name=$1
-    echo "${MACRO_DIR}/${macro_name}.macro"
+function get_macro_group_filename() {
+    local macro_group_name=$1
+    _log "get_macro_group_filename macro_group_name: $macro_group_name"
+    echo "${MACRO_DIR}/${macro_group_name}.macro"
 }
 
-function get_macro() {
-    local macro_file=$1
-
-    if [ -f "${macro_file}" ]; then
-        cat "${macro_file}"
+function get_macro_group_macros() {
+    local macro_group_file=$1
+    if [ -f "$macro_group_file" ]; then
+        cat "${macro_group_file}"
+    else
+        echo "macro_group_file ${macro_group_file} does not exist."
     fi
+}
+
+function get_flatten_macro_group_macros() {
+
+        function _get_flatten_macro_group_macros() {
+            local macro_group_name=$1
+            local macro_group_file=$(get_macro_group_filename $macro_group_name)
+            if [ -f "$macro_group_file" ]; then
+                cat "$macro_group_file" | \
+                    xargs -I {} echo "${macro_group_name}|{}"
+            else
+                echo "macro_group_file ${macro_group_file} does not exist."
+            fi
+        }
+
+    local macro_group_name=$1
+
+    if [[ $macro_group_name == "-"* ]]; then
+        while read macro_group_name; do
+            _get_flatten_macro_group_macros "$macro_group_name"
+        done
+    else
+        _get_flatten_macro_group_macros "$macro_group_name"
+    fi
+}
+
+function get_all_flatten_macros() {
+    get_macro_group_names | \
+        get_flatten_macro_group_macros -
 }
 
 function eval_macro_input() {
@@ -44,7 +79,11 @@ function eval_macro_input() {
     _log "eval_macro_input macro: $macro"
     if [[ $macro == *"${INPUT_PLACE_HOLDER}"* ]]; then
         local input=$(rofi -dmenu -format f -p "${macro}")
-        macro="${macro/${INPUT_PLACE_HOLDER}/${input}}"
+        if [ "$input" = "" ]; then
+            macro=""
+        else
+            macro="${macro/${INPUT_PLACE_HOLDER}/${input}}"
+        fi
     fi
     echo $macro
 }
@@ -61,7 +100,11 @@ function eval_macro_list() {
         local list_script_name="${MACRO_DIR}/${list_name}.list"
         local selected_list_item=$(echo "$(eval $list_script_name | rofi -dmenu -p ${list_name})")
 
-        macro="${macro/${list_place_holder}/${selected_list_item}}"
+        if [ "$selected_list_item" != "" ]; then
+            macro="${macro/${list_place_holder}/${selected_list_item}}"
+        else
+            macro=""
+        fi
     fi
 
     echo $macro
@@ -71,23 +114,58 @@ function eval_macro() {
     local macro=$1
     _log "eval_macro macro: $macro"
     macro=$(eval_macro_input "$macro")
-    macro=$(eval_macro_list "$macro")
+    if [ "$macro" != "" ]; then
+        macro=$(eval_macro_list "$macro")
+    fi
     echo $macro
+}
+
+function main_cascade() {
+    local selected_macro_name=$(get_macro_group_names | rofi -dmenu)
+    _log "selected_macro_name: $selected_macro_name"
+
+    local selected_macro_file=$(get_macro_group_filename $selected_macro_name)
+    local selected_macro=$(get_macro_group_macros $selected_macro_file | rofi -dmenu)
+
+    _log "selected_macro: $selected_macro"
+    local final_macro=$(eval_macro "$selected_macro")
+
+    echo "${final_macro}"
+}
+
+function main_flat() {
+    local selected_item=$(get_all_flatten_macros | rofi -dmenu)
+    _log "selected_item: $selected_item"
+
+    local selected_macro=$(echo $selected_item | cut -d'|' -f2-)
+
+    _log "selected_macro: $selected_macro"
+    local final_macro=$(eval_macro "$selected_macro")
+    echo "${final_macro}"
 }
 
 function main() {
     _log "INPUT_PLACE_HOLDER: $INPUT_PLACE_HOLDER"
 
-    local selected_macro_name=$(get_macro_names | rofi -dmenu)
-    _log "selected_macro_name: $selected_macro_name"
+    local final_macro
 
-    local selected_macro_file=$(get_macro_filename $selected_macro_name)
-    local selected_macro=$(get_macro $selected_macro_file | rofi -dmenu)
+    case "$MODE" in
+        CASCADE)
+            final_macro=$(main_cascade)
+            ;;
+        FLAT)
+            final_macro=$(main_flat)
+            ;;
+        *)
+            echo "Uknown MODE"
+            exit 1
+            ;;
+    esac
 
-    _log "selected_macro: $selected_macro"
-    local final_macro=$(eval_macro "$selected_macro")
-
-    xdotool type "${final_macro}"
+    _log "main final_macro: $final_macro"
+    if [ "$final_macro" != "" ]; then
+        xdotool sleep 0.15 type "${final_macro}"
+    fi
 }
 
 main
