@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$*" = "" ]; then
+    docker ps -a
+else
+    echo "$*" | awk '{print $1}'
+fi

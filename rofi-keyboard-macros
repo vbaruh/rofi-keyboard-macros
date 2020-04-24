@@ -92,10 +92,19 @@ function eval_macro_list() {
         local list_name=$(echo $list_place_holder | \
             sed -e 's/<<list_//g' -e 's/>>//g')
 
-        local list_script_name="${ROFI_KM_MACRO_DIR}/${list_name}.list"
+        # first check for 2step.list
+        local list_script_name="${ROFI_KM_MACRO_DIR}/${list_name}.2step.list"
+        local is_2step="yes"
+        if [ ! -f $list_script_name ]; then
+            list_script_name="${ROFI_KM_MACRO_DIR}/${list_name}.list"
+            is_2step="no"
+        fi
         local selected_list_item=$(echo "$(eval $list_script_name | $ROFI_KM_DMENU_CMD -p ${list_name})")
 
         if [ "$selected_list_item" != "" ]; then
+            if [ "$is_2step" = "yes" ]; then
+                selected_list_item=$($list_script_name "$selected_list_item")
+            fi
             macro="${macro/${list_place_holder}/${selected_list_item}}"
         else
             macro=""
@@ -188,5 +197,5 @@ function main() {
     fi
 }
 
-init "*@"
+init "$@"
 main

@@ -61,13 +61,14 @@ placeholder will be replaced with what has been entered.
 ## list files
 
 The second placeholder is the list placeholder. A list placeholder refers to
-a .list file.
+a .2step.list or a .list file.
 
 For example '<<list_docker_ps>>' is a list placeholder, because it matches the
 regex pattern '<<list_(.*)>>. The regex group match is the name of a list.
 In this example the name is docker_ps, which is a reference to a file named
 docker_ps.list under the macro directory.
 
+### .list files
 The .list files are scripts which should echo a list of options which will be
 supplied to another 'rofid -dmenu' call. The placeholder will be replaced with
 the selected option.
@@ -75,6 +76,19 @@ the selected option.
 Example macro with list placeholder is 'docker logs -f <<list_docker_ps>>'.
 So if the docker_ps.list script executes 'docker ps --format '{{ .Names }}''
 then the 'rofi -dmenu' call will show list of running container names.
+
+### .2step.list files
+
+A 2step list used in two steps to get a value to replace the list
+placeholder.
+
+In the first step it will be executed without parameters
+and it should return a list for selection. Items (lines) in this
+list could be a lot more descriptive, they could be rows from a table.
+
+In the second step the script will be executed with the selected by
+the user line. The script should parse this line and return a string
+which will replace the placeholder.
 
 ## modes
 
