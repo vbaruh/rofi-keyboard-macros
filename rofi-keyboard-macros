@@ -1,39 +1,34 @@
 #!/usr/bin/env bash
 
 INPUT_PLACE_HOLDER="<<input>>"
-
-MODE=${ROFI_MACROS_MODE:-CASCADE}
+DEFAULT_DMENU_CMD="rofi -i -dmenu"
 
 function _log() {
-    if [ ! -z "$ROFI_MACROS_DEBUG" ]; then
+    if [ ! -z "$ROFI_KM_DEBUG" ]; then
         echo "$*" >&2
     fi
 }
 
-if [ ! -z "$XDG_USER_CONFIG_DIR" ]; then
-  MACRO_DIR="${XDG_USER_CONFIG_DIR}/rofi/macros"
-else
-  MACRO_DIR="${HOME}/.config/rofi/macros"
-fi
-
-_log "MACRO_DIR: $MACRO_DIR"
+function _error() {
+    echo "$*" >&2
+}
 
 function get_macro_group_names() {
-    if [ -d "$MACRO_DIR" ]; then
-        for macro_file in $(ls ${MACRO_DIR}/*.macro); do
+    if [ -d "$ROFI_KM_MACRO_DIR" ]; then
+        for macro_file in $(ls ${ROFI_KM_MACRO_DIR}/*.macro 2>/dev/null); do
             local macro_group_filename=$(basename $macro_file)
             local macro_group_name="${macro_group_filename/.macro/}"
             echo "${macro_group_name}"
         done
     else
-        _log "MACRO_DIR $MACRO_DIR does not exist"
+        _log "ROFI_KM_MACRO_DIR $ROFI_KM_MACRO_DIR does not exist"
     fi
 }
 
 function get_macro_group_filename() {
     local macro_group_name=$1
     _log "get_macro_group_filename macro_group_name: $macro_group_name"
-    echo "${MACRO_DIR}/${macro_group_name}.macro"
+    echo "${ROFI_KM_MACRO_DIR}/${macro_group_name}.macro"
 }
 
 function get_macro_group_macros() {
@@ -78,7 +73,7 @@ function eval_macro_input() {
     local macro="$*"
     _log "eval_macro_input macro: $macro"
     if [[ $macro == *"${INPUT_PLACE_HOLDER}"* ]]; then
-        local input=$(rofi -dmenu -format f -p "${macro}")
+        local input=$($ROFI_KM_DMENU_CMD -format f -p "${macro}")
         if [ "$input" = "" ]; then
             macro=""
         else
@@ -97,8 +92,8 @@ function eval_macro_list() {
         local list_name=$(echo $list_place_holder | \
             sed -e 's/<<list_//g' -e 's/>>//g')
 
-        local list_script_name="${MACRO_DIR}/${list_name}.list"
-        local selected_list_item=$(echo "$(eval $list_script_name | rofi -dmenu -p ${list_name})")
+        local list_script_name="${ROFI_KM_MACRO_DIR}/${list_name}.list"
+        local selected_list_item=$(echo "$(eval $list_script_name | $ROFI_KM_DMENU_CMD -p ${list_name})")
 
         if [ "$selected_list_item" != "" ]; then
             macro="${macro/${list_place_holder}/${selected_list_item}}"
@@ -121,20 +116,22 @@ function eval_macro() {
 }
 
 function main_cascade() {
-    local selected_macro_name=$(get_macro_group_names | rofi -dmenu)
+    local selected_macro_name=$(get_macro_group_names | $ROFI_KM_DMENU_CMD)
     _log "selected_macro_name: $selected_macro_name"
 
-    local selected_macro_file=$(get_macro_group_filename $selected_macro_name)
-    local selected_macro=$(get_macro_group_macros $selected_macro_file | rofi -dmenu)
+    if [ ! -z "$selected_macro_name" ]; then
+        local selected_macro_file=$(get_macro_group_filename $selected_macro_name)
+        local selected_macro=$(get_macro_group_macros $selected_macro_file | $ROFI_KM_DMENU_CMD)
 
-    _log "selected_macro: $selected_macro"
-    local final_macro=$(eval_macro "$selected_macro")
+        _log "selected_macro: $selected_macro"
+        local final_macro=$(eval_macro "$selected_macro")
+    fi
 
     echo "${final_macro}"
 }
 
 function main_flat() {
-    local selected_item=$(get_all_flatten_macros | rofi -dmenu)
+    local selected_item=$(get_all_flatten_macros | $ROFI_KM_DMENU_CMD)
     _log "selected_item: $selected_item"
 
     local selected_macro=$(echo $selected_item | cut -d'|' -f2-)
@@ -144,12 +141,35 @@ function main_flat() {
     echo "${final_macro}"
 }
 
+function init() {
+
+    if [ -z "$ROFI_KM_MACRO_DIR" ]; then
+        if [ ! -z "$XDG_USER_CONFIG_DIR" ]; then
+            ROFI_KM_MACRO_DIR="${XDG_USER_CONFIG_DIR}/rofi/macros"
+        else
+            ROFI_KM_MACRO_DIR="${HOME}/.config/rofi/macros"
+        fi
+    fi
+
+    if [ ! -d "$ROFI_KM_MACRO_DIR" ]; then
+        _error "ROFI_KM_MACRO_DIR '${ROFI_KM_MACRO_DIR}' does not exist."
+        exit 1
+    fi
+
+    ROFI_KM_MODE=${ROFI_KM_MODE:-FLAT}
+    ROFI_KM_DMENU_CMD=${ROFI_KM_DMENU_CMD:-$DEFAULT_DMENU_CMD}
+
+    _log "ROFI_KM_MACRO_DIR: $ROFI_KM_MACRO_DIR"
+    _log "ROFI_KM_MODE: $ROFI_KM_MODE"
+    _log "ROFI_KM_DMENU_CMD: $ROFI_KM_DMENU_CMD"
+}
+
 function main() {
     _log "INPUT_PLACE_HOLDER: $INPUT_PLACE_HOLDER"
 
     local final_macro
 
-    case "$MODE" in
+    case "$ROFI_KM_MODE" in
         CASCADE)
             final_macro=$(main_cascade)
             ;;
@@ -157,7 +177,7 @@ function main() {
             final_macro=$(main_flat)
             ;;
         *)
-            echo "Uknown MODE"
+            _error "Valid values for ROFI_KM_MODE are 'CASCADE' and 'FLAT'."
             exit 1
             ;;
     esac
@@ -168,4 +188,5 @@ function main() {
     fi
 }
 
+init "*@"
 main

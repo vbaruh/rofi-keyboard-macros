@@ -10,16 +10,32 @@ This is script's *macro directory*.
 
 ## configuration
 
-The macro directory is within rofi's config directory, which means:
+The script is configured via environment variables.
+
+### ROFI_KM_MACRO_DIR
+
+ROFI_KM_MACRO_DIR could be set to a directory with macro and list files.
+
+If the variable is not initialized, then the script will default to a directory
+under rofi's config directory, which means:
  - $XDG_USER_CONFIG_DIR/rofi/macros
 or
  - $HOME/.config/rofi/macros
 
+### ROFI_KM_MODE
+
+Defines rofi-keyboard-macros mode, see below for more details.
+
+### ROFI_KM_DMENU_CMD
+
+Defines how to launch rofi in dmenu mode. The default value ('rofi -i -dmenu')
+starts rofi in case-insenstive dmenu mode, assuming that rofi is on the $PATH.
+
+
+## macro files
 
 The script looks for two type of files in the macro directory - macro and
 list files.
-
-## macro files
 
 A macro file should has .macro extension.
 A macro file represents a group of macros.
