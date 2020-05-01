@@ -1,5 +1,8 @@
 docker ps -a
+awk '{print $1}'
 docker ps | awk '{print 1}'
 docker stop
 docker rm <<list_docker_ps_all>>
 docker logs -f --tail 100 <<list_docker_ps>>
+xargs docker stop
+xargs docker rm
